@@ -2,6 +2,7 @@ import io
 import os
 from pathlib import Path
 from datetime import datetime
+from PIL import Image
 
 import numpy as np
 import pandas as pd
@@ -34,40 +35,61 @@ if not st.session_state.logged_in:
             st.error("❌ Invalid credentials")
     st.stop()
 
-# --- Simple CSS for pretty cards ---
+# ---------------------- Sidebar Logo ----------------------
+logo = Image.open("images.png")   # apna logo file path correct rakho
+st.sidebar.image(logo, width=160)
+st.sidebar.title("⚙️ Controls")
+
+# ---------------------- Custom Orange Theme ----------------------
 st.markdown("""
 <style>
-/* cards */
+/* Background */
+.main {
+    background-color: #fff8f0;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #fff4e6;
+}
+
+/* Cards */
 .metric-card {
   background: #ffffff;
-  border: 1px solid #eee;
+  border: 1px solid #fca311;
   border-radius: 14px;
   padding: 18px 16px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 14px rgba(252,163,17,0.2);
 }
+
+/* Titles */
 .metric-title {
   font-size: 0.90rem;
-  color: #6b7280;
-  margin-bottom: 6px;
+  color: #f77f00;
   font-weight: 600;
 }
 .metric-value {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #111827;
+  color: #d62828;
 }
-.metric-sub {
-  font-size: 0.85rem;
-  color: #6b7280;
+
+/* Buttons */
+div.stButton > button {
+    background-color: #fca311;
+    color: white;
+    border-radius: 10px;
+    border: none;
+    font-weight: bold;
 }
-.section {
-  padding: 10px 0 4px 0;
+div.stButton > button:hover {
+    background-color: #e85d04;
+    color: white;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------- Helpers ----------------------
-
 def _find_dir(*names: str) -> Path:
     here = Path(__file__).resolve().parent
     root = here.parent
@@ -188,18 +210,16 @@ def compute_views(df: pd.DataFrame, cols: dict) -> tuple[pd.DataFrame, pd.DataFr
     else:
         pending = lost.copy() if cols["discrepancies"] else df.iloc[0:0].copy()
 
-    # Reimbursed cases (include positive & negative both)
+    # Reimbursed cases
     if cols["reimbursement_amount"]:
         reimbursed_raw = df[df[cols["reimbursement_amount"]].notna()].copy()
         if cols["reimbursement_id"]:
-            # group by reimbursement_id, sum positive + negative both
             reimbursed = (
                 reimbursed_raw.groupby(cols["reimbursement_id"], as_index=False)[cols["reimbursement_amount"]]
                 .sum()
             )
         else:
             reimbursed = reimbursed_raw
-        # final sum (negative values will reduce total)
         reimb_amount_sum = reimbursed[cols["reimbursement_amount"]].sum()
     else:
         reimbursed = df.iloc[0:0].copy()
@@ -244,7 +264,6 @@ def save_outputs(lost: pd.DataFrame, pending: pd.DataFrame, reimb: pd.DataFrame,
 def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
     issues = []
 
-    # Shipped vs Received mismatch
     if cols["units_expected"] and cols["units_located"]:
         mismatch = df[df[cols["units_expected"]] != df[cols["units_located"]]].copy()
         for _, row in mismatch.iterrows():
@@ -255,7 +274,6 @@ def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
                 "Received": row.get(cols["units_located"], ""),
             })
 
-    # Return mismatch (use discrepancies if present)
     if cols["discrepancies"]:
         return_mismatch = df[df[cols["discrepancies"]] > 0].copy()
         for _, row in return_mismatch.iterrows():
@@ -268,10 +286,7 @@ def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
     return pd.DataFrame(issues)
 
 # ---------------------- Sidebar ----------------------
-st.sidebar.title("⚙️ Controls")
-
 page = st.sidebar.radio("📂 Select Page", ["Dashboard", "Monthly Graph"], index=0)
-
 mode = st.sidebar.radio("Input Mode", ["Use latest from Data/", "Upload file"], index=0)
 
 latest_file = find_latest_file(DATA_DIR)
@@ -423,4 +438,3 @@ if page == "Dashboard":
         issue_counts = rule_df["Issue"].value_counts()
         for issue, cnt in issue_counts.items():
             st.sidebar.write(f"- {issue}: {cnt}")
-
