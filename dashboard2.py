@@ -36,22 +36,18 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ---------------------- Sidebar Logo ----------------------
-logo = Image.open("images.png")   # apna logo file path correct rakho
-st.sidebar.image(logo, width=160)
+logo = Image.open("images.png")   # make sure images.png is present
+st.sidebar.image(logo, use_container_width=True)
 st.sidebar.title("⚙️ Controls")
 
 # ---------------------- Custom Orange Theme ----------------------
 st.markdown("""
 <style>
 /* Background */
-.main {
-    background-color: #fff8f0;
-}
+.main { background-color: #fff8f0; }
 
 /* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #fff4e6;
-}
+[data-testid="stSidebar"] { background-color: #fff4e6; }
 
 /* Cards */
 .metric-card {
@@ -61,8 +57,6 @@ st.markdown("""
   padding: 18px 16px;
   box-shadow: 0 4px 14px rgba(252,163,17,0.2);
 }
-
-/* Titles */
 .metric-title {
   font-size: 0.90rem;
   color: #f77f00;
@@ -73,6 +67,11 @@ st.markdown("""
   font-weight: 800;
   color: #d62828;
 }
+.metric-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.section { padding: 10px 0 4px 0; }
 
 /* Buttons */
 div.stButton > button {
@@ -189,6 +188,7 @@ def select_columns(df: pd.DataFrame) -> dict:
     return cols
 
 def compute_views(df: pd.DataFrame, cols: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    # normalize number/date fields
     if cols["reimbursement_amount"]:
         df[cols["reimbursement_amount"]] = numify(df[cols["reimbursement_amount"]])
     if cols["discrepancies"]:
@@ -198,19 +198,19 @@ def compute_views(df: pd.DataFrame, cols: dict) -> tuple[pd.DataFrame, pd.DataFr
     if cols["last_updated"]:
         df[cols["last_updated"]] = to_datetime(df[cols["last_updated"]])
 
-    # Lost inventory
+    # Lost inventory rows (negative discrepancies)
     if cols["discrepancies"]:
         lost = df[df[cols["discrepancies"]] < 0].copy()
     else:
         lost = df.iloc[0:0].copy()
 
-    # Pending reimbursement
+    # Pending reimbursement rows (lost but no $ yet)
     if cols["reimbursement_amount"] and not lost.empty:
         pending = lost[(lost[cols["reimbursement_amount"]].isna()) | (lost[cols["reimbursement_amount"]] == 0)].copy()
     else:
         pending = lost.copy() if cols["discrepancies"] else df.iloc[0:0].copy()
 
-    # Reimbursed cases
+    # Reimbursed cases (sum by reimbursement_id if present; include negatives to reduce total)
     if cols["reimbursement_amount"]:
         reimbursed_raw = df[df[cols["reimbursement_amount"]].notna()].copy()
         if cols["reimbursement_id"]:
@@ -225,16 +225,11 @@ def compute_views(df: pd.DataFrame, cols: dict) -> tuple[pd.DataFrame, pd.DataFr
         reimbursed = df.iloc[0:0].copy()
         reimb_amount_sum = np.nan
 
-    # Summary
-    total_rows = len(df)
-    total_lost = len(lost)
-    total_pending = len(pending)
-    total_reimb = len(reimbursed)
     summary = pd.DataFrame([{
-        "total_rows": total_rows,
-        "lost_inventory_rows": total_lost,
-        "pending_reimbursement_rows": total_pending,
-        "reimbursed_rows": total_reimb,
+        "total_rows": len(df),
+        "lost_inventory_rows": len(lost),
+        "pending_reimbursement_rows": len(pending),
+        "reimbursed_rows": len(reimbursed),
         "total_reimbursed_amount": reimb_amount_sum,
     }])
 
@@ -264,6 +259,7 @@ def save_outputs(lost: pd.DataFrame, pending: pd.DataFrame, reimb: pd.DataFrame,
 def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
     issues = []
 
+    # Shipped vs Received mismatch
     if cols["units_expected"] and cols["units_located"]:
         mismatch = df[df[cols["units_expected"]] != df[cols["units_located"]]].copy()
         for _, row in mismatch.iterrows():
@@ -274,6 +270,7 @@ def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
                 "Received": row.get(cols["units_located"], ""),
             })
 
+    # Return mismatch (use discrepancies if present)
     if cols["discrepancies"]:
         return_mismatch = df[df[cols["discrepancies"]] > 0].copy()
         for _, row in return_mismatch.iterrows():
@@ -286,7 +283,12 @@ def compute_rule_based(df: pd.DataFrame, cols: dict) -> pd.DataFrame:
     return pd.DataFrame(issues)
 
 # ---------------------- Sidebar ----------------------
-page = st.sidebar.radio("📂 Select Page", ["Dashboard", "Monthly Graph"], index=0)
+page = st.sidebar.radio(
+    "📂 Select Page",
+    ["Dashboard", "Monthly Graph", "Missing Funds Detection"],
+    index=0
+)
+
 mode = st.sidebar.radio("Input Mode", ["Use latest from Data/", "Upload file"], index=0)
 
 latest_file = find_latest_file(DATA_DIR)
@@ -338,10 +340,6 @@ rule_df = compute_rule_based(df, cols_map)
 # ---------------------- Pages ----------------------
 if page == "Dashboard":
     st.title("🧾 FBA Lost Inventory – Reimbursement Dashboard")
-
-    missing = [k for k in ["discrepancies","reimbursement_amount"] if cols_map.get(k) is None]
-    if missing:
-        st.warning(f"Heads up: couldn't find columns for {missing}. App will still run but results may be limited.")
 
     # Summary Cards
     st.markdown('<div class="section"></div>', unsafe_allow_html=True)
@@ -415,7 +413,7 @@ elif page == "Monthly Graph":
         monthly["month"] = monthly["month"].astype(str)
 
         fig, ax = plt.subplots(figsize=(8,4))
-        ax.bar(monthly["month"], monthly[amt_col], color="skyblue")
+        ax.bar(monthly["month"], monthly[amt_col], color="#fca311")
         ax.set_xlabel("Month")
         ax.set_ylabel("Total Reimbursement Amount")
         ax.set_title("Reimbursement Amount by Month")
@@ -427,6 +425,109 @@ elif page == "Monthly Graph":
         st.dataframe(monthly, use_container_width=True)
     else:
         st.warning("⚠️ Required columns (date + reimbursement_amount) not found in file.")
+
+# ---------------------- Missing Funds Detection ----------------------
+elif page == "Missing Funds Detection":
+    st.title("📦 Missing Funds Detection – Lost / Damaged / Unreimbursed Inventory")
+
+    st.markdown("""
+    This module analyzes your FBA inventory data to detect:
+    - 🟠 Lost or missing inbound shipments  
+    - 🔴 Damaged or unreturned items  
+    - 🟢 Customer return mismatches  
+    - 💰 Potential reimbursement opportunities  
+    """)
+
+    # 1) Base detection: Expected vs Located
+    if cols_map["units_expected"] and cols_map["units_located"]:
+        df["units_expected"] = numify(df[cols_map["units_expected"]])
+        df["units_located"]  = numify(df[cols_map["units_located"]])
+        df["potential_missing_units"] = (df[cols_map["units_expected"]] - df[cols_map["units_located"]]).clip(lower=0)
+        df_missing = df[df["potential_missing_units"] > 0].copy()
+    else:
+        df_missing = df.iloc[0:0].copy()
+
+    # 2) Estimated refund: use reimbursement_amount avg (if exists) as per-unit proxy
+    est_refund = 0.0
+    if cols_map["reimbursement_amount"] and not df_missing.empty:
+        df_missing["reimbursement_amount"] = numify(df[cols_map["reimbursement_amount"]])
+        per_unit_proxy = df_missing["reimbursement_amount"].replace(0, np.nan).mean()
+        if pd.isna(per_unit_proxy):
+            per_unit_proxy = 0.0
+        df_missing["estimated_refund"] = df_missing["potential_missing_units"] * per_unit_proxy
+        est_refund = float(df_missing["estimated_refund"].sum())
+    elif not df_missing.empty:
+        df_missing["estimated_refund"] = 0.0
+
+    # 3) Summary cards + table + chart + download
+    if not df_missing.empty:
+        total_missing_units = int(df_missing["potential_missing_units"].sum())
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                f"<div class='metric-card'><div class='metric-title'>Total Missing Units</div>"
+                f"<div class='metric-value'>{total_missing_units}</div></div>",
+                unsafe_allow_html=True
+            )
+        with c2:
+            st.markdown(
+                f"<div class='metric-card'><div class='metric-title'>Estimated Recoverable Amount</div>"
+                f"<div class='metric-value'>${est_refund:,.2f}</div></div>",
+                unsafe_allow_html=True
+            )
+
+        st.subheader("📋 Detailed Missing Items Report")
+        show_cols = []
+        # add safe columns if available
+        if cols_map["shipment_name"] and cols_map["shipment_name"] in df_missing.columns:
+            show_cols.append(cols_map["shipment_name"])
+        if cols_map["sku"] and cols_map["sku"] in df_missing.columns:
+            show_cols.append(cols_map["sku"])
+        if cols_map["asin"] and cols_map["asin"] in df_missing.columns:
+            show_cols.append(cols_map["asin"])
+        show_cols += ["potential_missing_units", "estimated_refund"]
+
+        rename_map = {}
+        if cols_map["shipment_name"]: rename_map[cols_map["shipment_name"]] = "Shipment"
+        if cols_map["sku"]:            rename_map[cols_map["sku"]] = "SKU"
+        if cols_map["asin"]:           rename_map[cols_map["asin"]] = "ASIN"
+        rename_map["potential_missing_units"] = "Missing Units"
+        rename_map["estimated_refund"]        = "Estimated Refund ($)"
+
+        st.dataframe(
+            df_missing[show_cols].rename(columns=rename_map),
+            use_container_width=True, height=300
+        )
+
+        st.download_button(
+            "⬇️ Download Missing Funds Report",
+            df_to_csv_bytes(df_missing.rename(columns=rename_map)),
+            file_name="missing_funds_report.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+        # Chart: Top 5 SKUs by Estimated Refund
+        st.subheader("📊 Top 5 SKUs by Estimated Refund")
+        if "estimated_refund" in df_missing.columns and cols_map["sku"]:
+            top5 = df_missing.copy()
+            # make sure SKU exists
+            top5 = top5[top5[cols_map["sku"]].notna()]
+            top5 = top5.sort_values("estimated_refund", ascending=False).head(5)
+            if not top5.empty:
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.bar(top5[cols_map["sku"]].astype(str), top5["estimated_refund"], color="#f77f00")
+                ax.set_xlabel("SKU")
+                ax.set_ylabel("Estimated Refund ($)")
+                ax.set_title("Top 5 SKUs by Refund Value")
+                plt.xticks(rotation=30, ha="right")
+                st.pyplot(fig)
+            else:
+                st.info("Not enough SKU data to chart.")
+        else:
+            st.info("Add SKU and reimbursement columns to view the chart.")
+    else:
+        st.info("✅ No missing or unreimbursed inventory detected.")
 
 # ---------------------- Sidebar Alerts ----------------------
 if page == "Dashboard":
