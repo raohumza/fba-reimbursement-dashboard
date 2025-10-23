@@ -9,6 +9,185 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 
+
+import streamlit as st
+
+st.set_page_config(page_title="Reimbursement Tool", layout="wide")
+
+# Session management (temporary login simulation)
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+# --------------------------- Navigation ---------------------------
+
+def go_home():
+    st.session_state.page = "home"
+
+def go_pricing():
+    st.session_state.page = "pricing"
+
+def go_login():
+    st.session_state.page = "login"
+
+def login_user():
+    st.session_state.logged_in = True
+    st.session_state.page = "dashboard"
+
+# --------------------------- Home Page ---------------------------
+
+def home_page():
+    st.markdown("<h1 style='text-align:center;color:#fca311;'>🧾 Amazon Reimbursement Tool</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <h4 style='text-align:center;'>
+    Maximize your FBA profits by reclaiming lost, damaged, or unreturned inventory funds automatically.<br>
+    Built 100% on Amazon’s official SP-API – secure, fast, and accurate.
+    </h4>
+    """, unsafe_allow_html=True)
+
+    st.image("https://cdn.pixabay.com/photo/2017/05/30/12/10/amazon-2358031_1280.png", use_column_width=True)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    st.markdown("""
+    ### ⚙️ Key Highlights
+    - Automated FBA audits for missing or damaged shipments  
+    - Real-time SP-API integration  
+    - Easy claim tracking and reimbursement reports  
+    - Transparent pricing, no % cut surprises  
+    - 100% secure and Amazon compliant
+    """)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns([1,1,1])
+    with c2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            '<button style="background-color:#fca311;color:white;border:none;padding:15px 25px;'
+            'font-size:18px;border-radius:10px;font-weight:700;" onclick="window.location.href=\'#pricing\'">'
+            'See Pricing →</button>', unsafe_allow_html=True
+        )
+        if st.button("💰 View Pricing Page"):
+            go_pricing()
+
+# --------------------------- Pricing Page ---------------------------
+
+def pricing_page():
+    st.title("💰 Reimbursement Fee Plans")
+    st.caption("Choose the best plan for your Amazon business.")
+
+    st.markdown("""
+    <style>
+    table {width:100%;border-collapse:collapse;text-align:center;}
+    th, td {border:1px solid #ddd;padding:8px;}
+    th {background:#fca311;color:#fff;}
+    tr:nth-child(even){background-color:#f9f9f9;}
+    tr:hover {background-color:#f1f1f1;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---- Reimbursement Fee Tier ----
+    st.markdown("""
+    <h3 style='color:#fca311;text-align:center;'>Reimbursement Fee Tier</h3>
+    <table>
+        <tr><th>Plan</th><th>Ideal For</th><th>Monthly Fee</th><th>Annual Fee</th><th>Reimbursement Fee</th><th>Sales Range</th></tr>
+        <tr><td><b>Starter</b></td><td>New sellers testing automation</td><td>$29.99</td><td>$299/yr (save 2mo)</td><td>10%</td><td>Up to $30k</td></tr>
+        <tr><td><b>Growth</b></td><td>Mid-size scaling sellers</td><td>$69.99</td><td>$699/yr (save 15%)</td><td>8–9%</td><td>$30k–$100k</td></tr>
+        <tr><td><b>Enterprise</b></td><td>Large multi-account sellers</td><td>$149.99</td><td>$1399/yr (save 20%)</td><td>7%</td><td>$100k+</td></tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ---- Feature Comparison ----
+    st.markdown("""
+    <h3 style='color:#fca311;text-align:center;'>Feature Comparison</h3>
+    <table>
+        <tr><th>Feature</th><th>Starter</th><th>Growth</th><th>Enterprise</th></tr>
+        <tr><td>Demo Audit</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Inbound Tracking</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Lost & Damaged Reconciliation</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Return Reconciliation</td><td>—</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Overage & Fee Error Detection</td><td>—</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Performance Dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Dedicated Manager</td><td>—</td><td>—</td><td>✅</td></tr>
+        <tr><td>Priority Support</td><td>—</td><td>✅</td><td>✅</td></tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ---- Competitor Comparison ----
+    st.markdown("""
+    <h3 style='color:#fca311;text-align:center;'>Competitor Comparison</h3>
+    <table>
+        <tr><th>Factor</th><th>Your Tool</th><th>GETIDA</th><th>Seller Investigators</th><th>RefundsManager</th></tr>
+        <tr><td>Subscription</td><td>✅ $29.99–$149.99</td><td>❌ None</td><td>❌ None</td><td>❌ None</td></tr>
+        <tr><td>Fee %</td><td>✅ 10%→7%</td><td>25%</td><td>25%</td><td>25%</td></tr>
+        <tr><td>Automation</td><td>✅ SP-API, Real-Time</td><td>⚠️ Semi</td><td>⚠️ Manual</td><td>⚠️ Manual</td></tr>
+        <tr><td>Fee Errors Coverage</td><td>✅ Yes</td><td>❌ No</td><td>❌ No</td><td>❌ No</td></tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ---- Seller Savings ----
+    st.markdown("""
+    <h3 style='color:#fca311;text-align:center;'>Seller Savings Example</h3>
+    <table>
+        <tr><th>Monthly Recovery</th><th>Competitor (25%)</th><th>Your Tool</th><th>Seller Keeps Extra</th></tr>
+        <tr><td>$2,000</td><td>$500 fee</td><td>$229.99</td><td>💰 +$270</td></tr>
+        <tr><td>$5,000</td><td>$1,250 fee</td><td>$494.99</td><td>💰 +$755</td></tr>
+        <tr><td>$10,000</td><td>$2,500 fee</td><td>$849.99</td><td>💰 +$1,650</td></tr>
+    </table>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns([1,1,1])
+    with c2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            '<button style="background-color:#fca311;color:white;border:none;padding:15px 25px;'
+            'font-size:18px;border-radius:10px;font-weight:700;">Login to Continue →</button>',
+            unsafe_allow_html=True
+        )
+        if st.button("🔐 Go to Login"):
+            go_login()
+
+# --------------------------- Login Page ---------------------------
+
+def login_page():
+    st.title("🔐 Connect Your Amazon Account")
+    st.markdown("Please authorize access to your Seller Central to start using the reimbursement dashboard.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🟠 Sign in with Amazon"):
+        login_user()
+        st.success("Redirecting to dashboard...")
+
+# --------------------------- Dashboard Page ---------------------------
+
+def dashboard_page():
+    st.title("📊 Reimbursement Dashboard")
+    st.success("Welcome! Your account is successfully connected.")
+    st.info("Here your live reimbursement metrics, claims, and reports will appear.")
+    st.button("⬅️ Back to Home", on_click=go_home)
+
+# --------------------------- Page Routing ---------------------------
+
+if st.session_state.page == "home":
+    home_page()
+elif st.session_state.page == "pricing":
+    pricing_page()
+elif st.session_state.page == "login":
+    login_page()
+elif st.session_state.page == "dashboard":
+    dashboard_page()
+
+
 # ---------------------- Page Setup ----------------------
 st.set_page_config(
     page_title="FBA Lost Inventory – Reimbursement Tool",
